@@ -209,10 +209,11 @@ function chipsHTML() {
   return SOURCES.map(([k, n]) => `<button class="chip ${F.src === k ? "on" : ""}" data-src="${k}">${n}</button>`).join("") + `<span style="flex:none;width:6px"></span>` +
     KINDS.slice(1).map(([k, n]) => `<button class="chip ${F.kind === k ? "on" : ""}" data-kind="${k}">${n}</button>`).join("");
 }
+function chipGo() { if (/^#\/topics/.test(location.hash)) go("#/"); else route(); window.scrollTo(0, 0); }
 function drawChips() {
   const el = $("#fchips"); el.innerHTML = chipsHTML();
-  el.querySelectorAll("[data-src]").forEach(b => b.onclick = () => { F.src = b.dataset.src; drawChips(); route(); });
-  el.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { F.kind = F.kind === b.dataset.kind ? "all" : b.dataset.kind; drawChips(); route(); });
+  el.querySelectorAll("[data-src]").forEach(b => b.onclick = () => { F.src = b.dataset.src; drawChips(); chipGo(); });
+  el.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { F.kind = F.kind === b.dataset.kind ? "all" : b.dataset.kind; drawChips(); chipGo(); });
 }
 function paras(t) { return String(t || "").split(/\n{2,}/).map(p => p.trim()).filter(Boolean).map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join(""); }
 function setNav(id) { document.querySelectorAll("nav.bot button").forEach(b => b.classList.toggle("on", b.id === id)); }
@@ -222,7 +223,7 @@ function browse() {
   const byT = {}; list.forEach(c => (byT[c.t] = byT[c.t] || []).push(c));
   const lbl = [F.src !== "all" ? SOURCES.find(s => s[0] === F.src)[1] : "", F.kind !== "all" ? KINDS.find(k => k[0] === F.kind)[1] : ""].filter(Boolean).join(" · ");
   V.innerHTML = `<div class="hint">${list.length} answers — ${esc(lbl)} · <a href="#" id="clrf">clear filter</a></div><div style="height:8px"></div>` +
-    D.topics.filter(t => byT[t.id]).map(t => `<details class="grp"><summary>${t.icon} ${esc(t.name)}<span>${byT[t.id].length}</span></summary>${byT[t.id].map(c => `<div class="it" data-id="${c.id}">${esc(c.q)}<small>${esc(c.g || c.src)}</small></div>`).join("")}</details>`).join("");
+    D.topics.filter(t => byT[t.id]).map((t, i) => `<details class="grp" ${i === 0 ? "open" : ""}><summary>${t.icon} ${esc(t.name)}<span>${byT[t.id].length}</span></summary>${byT[t.id].map(c => `<div class="it" data-id="${c.id}">${esc(c.q)}<small>${esc(c.g || c.src)}</small></div>`).join("")}</details>`).join("");
   V.querySelectorAll(".it[data-id]").forEach(el => el.onclick = () => go("#/c/" + el.dataset.id));
   $("#clrf").onclick = e => { e.preventDefault(); F.src = "all"; F.kind = "all"; drawChips(); route(); };
 }
@@ -368,7 +369,11 @@ applyPrefs();
   $("#count").textContent = "· " + D.cards.length.toLocaleString() + " answers";
   drawChips(); route();
 })();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});
+  let reloaded = false; const hadSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded && hadSW) { reloaded = true; location.reload(); } });
+}
 </script>
 </body>
 </html>
