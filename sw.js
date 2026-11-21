@@ -1,7 +1,7 @@
 // Offline cache for Ahmadiyya Pocket Book.
 // The page and the search index are fetched from the network first (so updates show at once) and fall back to the cache offline.
 // Answer texts and scans are served from the cache first. Bump VERSION when publishing new data.
-const VERSION = "pb-v4";
+const VERSION = "pb-v5";
 const SHELL = ["./", "index.html", "data/index.json", "manifest.json", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).catch(() => {}));

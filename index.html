@@ -23,6 +23,7 @@ a{color:var(--acc)}button{font:inherit;color:inherit}
 header{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--acc);margin:2px 0 8px}
 .brand small{color:var(--mute);font-weight:400}
+.hguide{margin-left:auto;font-weight:600;font-size:14px;color:var(--acc);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 11px;background:var(--card)}
 .sbox{position:relative}
 .sbox input{width:100%;font-size:17px;padding:12px 40px 12px 40px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);outline:none}
 .sbox input:focus{border-color:var(--acc)}
@@ -84,7 +85,7 @@ nav.bot button.on{color:var(--acc)}
 </head>
 <body>
 <header>
-  <div class="brand"><span>📗 Ahmadiyya Pocket Book</span><small id="count"></small></div>
+  <div class="brand"><span>📗 Ahmadiyya Pocket Book</span><small id="count"></small><a class="hguide" href="guide/">Guide</a></div>
   <div class="sbox"><span class="ic">🔍</span><input id="q" type="search" placeholder="Search a question, verse (3:144), word…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"><button class="clr" id="clr" aria-label="Clear">×</button></div>
   <div class="chips" id="fchips"></div>
 </header>
@@ -310,15 +311,16 @@ function saved() {
   setNav("nSaved"); const s = store.get("saved", []).map(i => BY[i]).filter(Boolean);
   V.innerHTML = `<h2 class="sec">Saved (${s.length})</h2>${s.length ? rows(s, "", 500) : `<div class="empty">Tap ☆ Save on any answer to keep it here.</div>`}`; bindRows(s);
 }
+const studyable = c => !!c.x || (c.a.length > 120 && !/^(scanned reference|see the original)/i.test(c.a));
 function study(tid) {
   setNav("nStudy");
   const prog = store.get("study", {});
-  if (!tid) { V.innerHTML = `<h2 class="sec">Study — pick a topic</h2><p class="note">Flashcards: read the question, think of the answer, then reveal. Cards you mark “Again” come back sooner.</p><div class="grid">${D.topics.filter(t => t.n).map(t => { const cs = D.cards.filter(c => c.t === t.id && (c.x || c.h.r)); const k = cs.filter(c => (prog[c.id] || 0) >= 2).length; return `<button class="tile" data-t="${t.id}"><span class="i">${t.icon}</span><b>${esc(t.name)}</b><span>${k}/${cs.length} known</span></button>`; }).join("")}</div>`; V.querySelectorAll("[data-t]").forEach(b => b.onclick = () => go("#/study/" + b.dataset.t)); return; }
-  const pool = D.cards.filter(c => c.t === tid && (c.x || c.h.r)).sort((a, b) => (prog[a.id] || 0) - (prog[b.id] || 0) || Math.random() - .5);
+  if (!tid) { V.innerHTML = `<h2 class="sec">Study — pick a topic</h2><p class="note">Flashcards: read the question, think of the answer, then reveal. Cards you mark “Again” come back sooner.</p><div class="grid">${D.topics.filter(t => t.n).map(t => { const cs = D.cards.filter(c => c.t === t.id && studyable(c)); const k = cs.filter(c => (prog[c.id] || 0) >= 2).length; return `<button class="tile" data-t="${t.id}"><span class="i">${t.icon}</span><b>${esc(t.name)}</b><span>${k}/${cs.length} known</span></button>`; }).join("")}</div>`; V.querySelectorAll("[data-t]").forEach(b => b.onclick = () => go("#/study/" + b.dataset.t)); return; }
+  const pool = D.cards.filter(c => c.t === tid && studyable(c)).sort((a, b) => (prog[a.id] || 0) - (prog[b.id] || 0) || Math.random() - .5);
   window._seen = window._seen || new Set();
   let c = pool.find(x => !window._seen.has(x.id)); if (!c) { window._seen.clear(); c = pool[0]; } if (!c) return study();
   window._seen.add(c.id);
-  V.innerHTML = `<button class="back" onclick="go('#/study')">‹ Topics</button><div class="study"><div class="note">${esc(T[tid].name)} · ${pool.filter(x => (prog[x.id] || 0) >= 2).length}/${pool.length} known</div><div class="q">${esc(c.q)}</div><div class="acts" style="justify-content:center"><button class="btn p" id="rv">Show answer</button><button class="btn" id="nx">Next card →</button></div><div id="ans" style="display:none;text-align:left"><div class="box short"><div class="lbl">In short</div><div class="txt">${paras(c.a)}</div></div>${c.x ? `<div class="box"><div class="lbl">Explanation</div><div class="txt">${paras(c.x)}</div></div>` : ""}<div class="acts" style="justify-content:center"><button class="btn" id="ag">↺ Again</button><button class="btn p" id="kn">✓ Know it</button><button class="btn" id="op">Open card</button><button class="btn" id="nx2">Next card →</button></div></div></div>`;
+  V.innerHTML = `<button class="back" onclick="go('#/study')">‹ Topics</button><div class="study"><div class="note">${esc(T[tid].name)} · ${pool.filter(x => (prog[x.id] || 0) >= 2).length}/${pool.length} known</div><div class="q">${esc(c.q)}</div><div class="acts" style="justify-content:center"><button class="btn p" id="rv">Show answer</button><button class="btn" id="nx">Next card →</button></div><div id="ans" style="display:none;text-align:left"><div class="box short"><div class="lbl">In short</div><div class="txt">${paras(c.a)}</div></div><div class="acts" style="justify-content:center"><button class="btn" id="ag">↺ Again</button><button class="btn p" id="kn">✓ Know it</button><button class="btn" id="op">Open card</button><button class="btn" id="nx2">Next card →</button></div>${c.x ? `<div class="box"><div class="lbl">Explanation</div><div class="txt">${paras(c.x)}</div></div>` : ""}</div></div>`;
   $("#rv").onclick = () => { $("#ans").style.display = "block"; $("#rv").parentNode.style.display = "none"; };
   $("#nx").onclick = $("#nx2").onclick = () => study(tid);
   const mark = d => { prog[c.id] = Math.max(0, (prog[c.id] || 0) + d); store.set("study", prog); study(tid); };
@@ -329,6 +331,7 @@ function more() {
   const n = {}; D.cards.forEach(c => n[c._src] = (n[c._src] || 0) + 1);
   V.innerHTML = `<h2 class="sec">Settings</h2><div class="box"><div class="acts" style="margin:0;align-items:center">Text size <button class="btn" id="fm">A−</button><button class="btn" id="fp">A+</button></div><div class="acts" style="margin:10px 0 0;align-items:center">Theme ${["auto", "light", "dark"].map(t => `<button class="btn ${th === t ? "p" : ""}" data-th="${t}">${t}</button>`).join("")}</div></div>
   <div class="box"><div class="lbl">Use offline</div><p class="note" style="margin-top:0">Answers you open are kept for offline use. To keep everything (about 20 MB), tap below once on Wi-Fi.</p><button class="btn p" id="dl">Save all for offline</button> <span class="note" id="dls"></span></div>
+  <div class="box"><div class="lbl">How to use the app</div><a href="guide/">Open the step-by-step guide →</a></div>
   <h2 class="sec">Sources</h2><div class="box txt"><p>${[["Al Islam Digital Library","https://new.alislam.org/library"],["The Holy Quran (Ahmadiyya)","https://www.alislam.org/quran/"],["Ahmadi Answers","https://ahmadianswers.com"],["White Minaret","https://whiteminaret.org"],["Sunnah.com (hadith)","https://sunnah.com"]].map(([n,u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(" · ")}</p><p class="note">All cards are drafts made from these sources — check quotations against the original before presenting.</p></div>`;
   $("#fm").onclick = () => { store.set("fs", Math.max(13, fs - 1)); applyPrefs(); more(); };
   $("#fp").onclick = () => { store.set("fs", Math.min(22, fs + 1)); applyPrefs(); more(); };
