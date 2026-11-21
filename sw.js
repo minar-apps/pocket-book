@@ -1,6 +1,6 @@
 // Offline cache for Ahmadiyya Pocket Book: app shell + search index precached; answer texts and scans cached when opened
 // (or all at once from More > Save all for offline). Bump VERSION when publishing new data.
-const VERSION = "pb-v2";
+const VERSION = "pb-v3";
 const SHELL = ["./", "index.html", "data/index.json", "manifest.json", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).catch(() => {}));

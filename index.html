@@ -216,6 +216,16 @@ function drawChips() {
 }
 function paras(t) { return String(t || "").split(/\n{2,}/).map(p => p.trim()).filter(Boolean).map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join(""); }
 function setNav(id) { document.querySelectorAll("nav.bot button").forEach(b => b.classList.toggle("on", b.id === id)); }
+function browse() {
+  setNav("nHome");
+  const list = D.cards.filter(passFilters);
+  const byT = {}; list.forEach(c => (byT[c.t] = byT[c.t] || []).push(c));
+  const lbl = [F.src !== "all" ? SOURCES.find(s => s[0] === F.src)[1] : "", F.kind !== "all" ? KINDS.find(k => k[0] === F.kind)[1] : ""].filter(Boolean).join(" · ");
+  V.innerHTML = `<div class="hint">${list.length} answers — ${esc(lbl)} · <a href="#" id="clrf">clear filter</a></div><div style="height:8px"></div>` +
+    D.topics.filter(t => byT[t.id]).map(t => `<details class="grp"><summary>${t.icon} ${esc(t.name)}<span>${byT[t.id].length}</span></summary>${byT[t.id].map(c => `<div class="it" data-id="${c.id}">${esc(c.q)}<small>${esc(c.g || c.src)}</small></div>`).join("")}</details>`).join("");
+  V.querySelectorAll(".it[data-id]").forEach(el => el.onclick = () => go("#/c/" + el.dataset.id));
+  $("#clrf").onclick = e => { e.preventDefault(); F.src = "all"; F.kind = "all"; drawChips(); route(); };
+}
 function home() {
   setNav("nHome");
   const saved = store.get("saved", []).map(i => BY[i]).filter(Boolean), recent = store.get("recent", []).map(i => BY[i]).filter(Boolean);
@@ -304,9 +314,12 @@ function study(tid) {
   const prog = store.get("study", {});
   if (!tid) { V.innerHTML = `<h2 class="sec">Study — pick a topic</h2><p class="note">Flashcards: read the question, think of the answer, then reveal. Cards you mark “Again” come back sooner.</p><div class="grid">${D.topics.filter(t => t.n).map(t => { const cs = D.cards.filter(c => c.t === t.id && (c.x || c.h.r)); const k = cs.filter(c => (prog[c.id] || 0) >= 2).length; return `<button class="tile" data-t="${t.id}"><span class="i">${t.icon}</span><b>${esc(t.name)}</b><span>${k}/${cs.length} known</span></button>`; }).join("")}</div>`; V.querySelectorAll("[data-t]").forEach(b => b.onclick = () => go("#/study/" + b.dataset.t)); return; }
   const pool = D.cards.filter(c => c.t === tid && (c.x || c.h.r)).sort((a, b) => (prog[a.id] || 0) - (prog[b.id] || 0) || Math.random() - .5);
-  const c = pool[0]; if (!c) return study();
-  V.innerHTML = `<button class="back" onclick="go('#/study')">‹ Topics</button><div class="study"><div class="note">${esc(T[tid].name)} · ${pool.filter(x => (prog[x.id] || 0) >= 2).length}/${pool.length} known</div><div class="q">${esc(c.q)}</div><button class="btn p" id="rv">Show answer</button><div id="ans" style="display:none;text-align:left"><div class="box short"><div class="lbl">In short</div><div class="txt">${paras(c.a)}</div></div>${c.x ? `<div class="box"><div class="lbl">Explanation</div><div class="txt">${paras(c.x)}</div></div>` : ""}<div class="acts" style="justify-content:center"><button class="btn" id="ag">↺ Again</button><button class="btn p" id="kn">✓ Know it</button><button class="btn" id="op">Open card</button></div></div></div>`;
-  $("#rv").onclick = () => { $("#ans").style.display = "block"; $("#rv").style.display = "none"; };
+  window._seen = window._seen || new Set();
+  let c = pool.find(x => !window._seen.has(x.id)); if (!c) { window._seen.clear(); c = pool[0]; } if (!c) return study();
+  window._seen.add(c.id);
+  V.innerHTML = `<button class="back" onclick="go('#/study')">‹ Topics</button><div class="study"><div class="note">${esc(T[tid].name)} · ${pool.filter(x => (prog[x.id] || 0) >= 2).length}/${pool.length} known</div><div class="q">${esc(c.q)}</div><div class="acts" style="justify-content:center"><button class="btn p" id="rv">Show answer</button><button class="btn" id="nx">Next card →</button></div><div id="ans" style="display:none;text-align:left"><div class="box short"><div class="lbl">In short</div><div class="txt">${paras(c.a)}</div></div>${c.x ? `<div class="box"><div class="lbl">Explanation</div><div class="txt">${paras(c.x)}</div></div>` : ""}<div class="acts" style="justify-content:center"><button class="btn" id="ag">↺ Again</button><button class="btn p" id="kn">✓ Know it</button><button class="btn" id="op">Open card</button><button class="btn" id="nx2">Next card →</button></div></div></div>`;
+  $("#rv").onclick = () => { $("#ans").style.display = "block"; $("#rv").parentNode.style.display = "none"; };
+  $("#nx").onclick = $("#nx2").onclick = () => study(tid);
   const mark = d => { prog[c.id] = Math.max(0, (prog[c.id] || 0) + d); store.set("study", prog); study(tid); };
   $("#ag").onclick = () => mark(-1); $("#kn").onclick = () => mark(1); $("#op").onclick = () => go("#/c/" + c.id);
 }
@@ -315,7 +328,7 @@ function more() {
   const n = {}; D.cards.forEach(c => n[c._src] = (n[c._src] || 0) + 1);
   V.innerHTML = `<h2 class="sec">Settings</h2><div class="box"><div class="acts" style="margin:0;align-items:center">Text size <button class="btn" id="fm">A−</button><button class="btn" id="fp">A+</button></div><div class="acts" style="margin:10px 0 0;align-items:center">Theme ${["auto", "light", "dark"].map(t => `<button class="btn ${th === t ? "p" : ""}" data-th="${t}">${t}</button>`).join("")}</div></div>
   <div class="box"><div class="lbl">Use offline</div><p class="note" style="margin-top:0">Answers you open are kept for offline use. To keep everything (about 20 MB), tap below once on Wi-Fi.</p><button class="btn p" id="dl">Save all for offline</button> <span class="note" id="dls"></span></div>
-  <h2 class="sec">Sources</h2><div class="box txt"><p><b>Pocket Book & Jamaat Urdu books</b> (${n.pb || 0}): Ahmadiyya Pocket Book, Qandeel-e-Sadaqat, Tabligh-e-Hidayat, Khatm-e-Nabuwwat ki Haqeeqat, Al-Hujjat-ul-Baligha, A Pocket Book of Biblical References, Truth about the Split.</p><p><b>Hazrat Mirza Tahir Ahmad, Khalifatul Masih IV (rh)</b> (${n.kt || 0}): Murder in the Name of Allah; The Truth about the Alleged Punishment for Apostasy; Christianity — A Journey from Facts to Fiction; The Nazarene Kashmiri Christ; With Love to the Muslims of the World; Review of the "White Paper"; Religion and Politics in Islam; Revival of Religion; The Seal of Prophets; Some Distinctive Features of Islam; An Elementary Study of Islam; The Detroit Address; Universal Moral Values; Islam's Response to Contemporary Issues; Absolute Justice, Kindness and Kinship; Revelation, Rationality, Knowledge & Truth — from the <a href="https://new.alislam.org/library/authors/hazrat-mirza-tahir-ahmad" target="_blank" rel="noopener">Al Islam library</a>.</p><p><b>Ahmadi Answers</b> (${n.site || 0}): <a href="https://ahmadianswers.com" target="_blank" rel="noopener">ahmadianswers.com</a></p><p><b>White Minaret</b> (${n.wm || 0}): <a href="https://whiteminaret.org" target="_blank" rel="noopener">whiteminaret.org</a>, including passages from <i>Essence of Islam</i> and <i>The Life & Character of the Seal of the Prophets</i>.</p><p>Hadith links go to <a href="https://sunnah.com" target="_blank" rel="noopener">sunnah.com</a>.</p><p class="note">Quran verses use the Ahmadiyya numbering (Bismillah counted as verse 1); searching 3:144 also finds 3:145. All cards are drafts made from these sources: check quotations against the original before presenting or publishing.</p></div>`;
+  <h2 class="sec">Sources</h2><div class="box txt"><p>${[["Al Islam Digital Library","https://new.alislam.org/library"],["The Holy Quran (Ahmadiyya)","https://www.alislam.org/quran/"],["Ahmadi Answers","https://ahmadianswers.com"],["White Minaret","https://whiteminaret.org"],["Sunnah.com (hadith)","https://sunnah.com"]].map(([n,u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(" · ")}</p><p class="note">All cards are drafts made from these sources — check quotations against the original before presenting.</p></div>`;
   $("#fm").onclick = () => { store.set("fs", Math.max(13, fs - 1)); applyPrefs(); more(); };
   $("#fp").onclick = () => { store.set("fs", Math.min(22, fs + 1)); applyPrefs(); more(); };
   V.querySelectorAll("[data-th]").forEach(b => b.onclick = () => { store.set("theme", b.dataset.th); applyPrefs(); more(); });
@@ -336,7 +349,7 @@ function route() {
   if (p[0] === "study") return study(p[1]);
   if (p[0] === "more") return more();
   if (p[0] === "s" && p[1]) { if (q !== p.slice(1).join("/")) $("#q").value = p.slice(1).join("/"); return results(p.slice(1).join("/")); }
-  return q ? results(q) : home();
+  return q ? results(q) : (F.src !== "all" || F.kind !== "all") ? browse() : home();
 }
 let tm;
 function onType() {
